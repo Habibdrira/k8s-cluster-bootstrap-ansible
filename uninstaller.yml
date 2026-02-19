@@ -1,0 +1,79 @@
+---
+- name: Uninstall containerd and docker and clean system
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Stop containerd service if exists
+      systemd:
+        name: containerd
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Stop docker service if exists
+      systemd:
+        name: docker
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove containerd.io
+      apt:
+        name: containerd.io
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Remove containerd package
+      apt:
+        name: containerd
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Remove docker.io
+      apt:
+        name: docker.io
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Remove docker-ce if exists
+      apt:
+        name: docker-ce
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Autoremove unused packages
+      apt:
+        autoremove: yes
+
+    - name: Clean apt cache
+      apt:
+        autoclean: yes
+
+    - name: Remove containerd directory
+      file:
+        path: /var/lib/containerd
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove docker directory
+      file:
+        path: /var/lib/docker
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove docker config directory
+      file:
+        path: /etc/docker
+        state: absent
+      ignore_errors: yes
+
+    - name: Reload systemd
+      command: systemctl daemon-reexec
+      ignore_errors: yes
+

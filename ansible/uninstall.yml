@@ -1,0 +1,41 @@
+- hosts: all
+  tasks:
+
+  - name: Stop services
+    systemd:
+      name: "{{ item }}"
+      state: stopped
+    ignore_errors: true
+    loop:
+      - kubelet
+      - docker
+      - cri-docker
+
+  - name: Reset kubeadm
+    command: kubeadm reset -f
+    ignore_errors: true
+
+  - name: Remove packages
+    apt:
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - kubelet
+        - kubeadm
+        - kubectl
+      state: absent
+      purge: yes
+
+  - name: Remove directories
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /etc/kubernetes
+      - /var/lib/kubelet
+      - /var/lib/etcd
+      - /var/lib/docker
+
+  - name: Reload systemd
+    command: systemctl daemon-reload

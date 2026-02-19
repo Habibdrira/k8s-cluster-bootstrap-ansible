@@ -1,0 +1,122 @@
+
+#################################################
+# Install Docker
+#################################################
+
+- name: Install Docker packages
+  apt:
+    name:
+      - docker.io
+    state: present
+    update_cache: yes
+
+- name: Enable and start Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+#################################################
+# Install CNI plugins (required)
+#################################################
+
+- name: Create CNI directory
+  file:
+    path: /opt/cni/bin
+    state: directory
+
+- name: Download CNI plugins
+  get_url:
+    url: https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-amd64-v1.5.0.tgz
+    dest: /tmp/cni.tgz
+
+- name: Extract CNI plugins
+  unarchive:
+    src: /tmp/cni.tgz
+    dest: /opt/cni/bin
+    remote_src: yes
+
+#################################################
+# Install cri-dockerd
+#################################################
+
+- name: Download cri-dockerd
+  get_url:
+    url: https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.15/cri-dockerd-0.3.15.amd64.tgz
+    dest: /tmp/cri-dockerd.tgz
+
+- name: Extract cri-dockerd
+  unarchive:
+    src: /tmp/cri-dockerd.tgz
+    dest: /tmp
+    remote_src: yes
+
+- name: Install cri-dockerd binary
+  copy:
+    src: /tmp/cri-dockerd/cri-dockerd
+    dest: /usr/local/bin/cri-dockerd
+    mode: '0755'
+    remote_src: yes
+
+#################################################
+# Create cri-docker.socket
+#################################################
+
+- name: Create cri-docker.socket
+  copy:
+    dest: /etc/systemd/system/cri-docker.socket
+    content: |
+      [Unit]
+      Description=CRI Docker Socket
+
+      [Socket]
+      ListenStream=/var/run/cri-dockerd.sock
+      SocketMode=0660
+      SocketUser=root
+      SocketGroup=docker
+
+      [Install]
+      WantedBy=sockets.target
+
+#################################################
+# Create cri-docker.service (FINAL FIX)
+#################################################
+
+- name: Create cri-docker.service
+  copy:
+    dest: /etc/systemd/system/cri-docker.service
+    content: |
+      [Unit]
+      Description=CRI Docker Service
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      ExecStart=/usr/local/bin/cri-dockerd \
+        --docker-endpoint unix:///var/run/docker.sock \
+        --network-plugin=cni
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+#################################################
+# Enable services
+#################################################
+
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+- name: Enable cri-docker.socket
+  systemd:
+    name: cri-docker.socket
+    enabled: yes
+    state: started
+
+- name: Enable and start cri-docker.service
+  systemd:
+    name: cri-docker.service
+    enabled: yes
+    state: started
+

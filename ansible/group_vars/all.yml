@@ -1,0 +1,9 @@
+ansible_become: true
+
+pod_network_cidr: "192.168.0.0/16"
+
+cri_socket: "unix:///var/run/cri-dockerd.sock"
+
+kubernetes_version: "1.29"
+
+calico_manifest_url: "https://docs.projectcalico.org/manifests/calico.yaml"

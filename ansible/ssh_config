@@ -1,0 +1,20 @@
+Host master1
+    HostName 192.168.1.10
+    User ubuntu
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking no
+
+Host worker1
+    HostName 192.168.1.20
+    User ubuntu
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking no
+
+Host worker2
+    HostName 192.168.1.30
+    User ubuntu
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking no
