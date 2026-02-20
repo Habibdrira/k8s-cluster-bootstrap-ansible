@@ -22,7 +22,7 @@ Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansib
 
 ### 1. Configurer les adresses IP statiques sur vos VMs
 
-Voir la documentation dans le dossier `docs/` pour configurer les IPs avec Netplan.
+Configurez les IPs statiques avec Netplan sur chaque VM (fichier `/etc/netplan/00-installer-config.yaml`).
 
 ### 2. Configurer SSH
 
