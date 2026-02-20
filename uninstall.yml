@@ -41,4 +41,6 @@
       - /usr/local/bin/cri-dockerd
 
   - name: Reload systemd
-    command: systemctl daemon-reload
+    systemd:
+      daemon_reload: yes
+    changed_when: false

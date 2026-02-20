@@ -1,5 +1,6 @@
 - name: Disable swap
   command: swapoff -a
+  changed_when: false
   ignore_errors: true
 
 - name: Remove swap from fstab
