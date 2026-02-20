@@ -1,0 +1,86 @@
+- name: Check cluster initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: cluster_init
+
+- name: Generate kubeadm config
+  template:
+    src: kubeadm-config.yaml.j2
+    dest: /tmp/kubeadm-config.yaml
+  when: not cluster_init.stat.exists
+
+- name: Initialize cluster
+  command: kubeadm init --config=/tmp/kubeadm-config.yaml
+  when: not cluster_init.stat.exists
+
+- name: Create kube directory for root
+  file:
+    path: ~/.kube
+    state: directory
+
+- name: Create kube directory for user
+  file:
+    path: /home/{{ ansible_user }}/.kube
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copy kube config for root
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+    remote_src: yes
+
+- name: Copy kube config for user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/{{ ansible_user }}/.kube/config
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Wait for API server
+  command: kubectl get nodes
+  register: api_ready
+  retries: 30
+  delay: 10
+  until: api_ready.rc == 0
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Download Calico manifest
+  get_url:
+    url: "{{ calico_manifest_url }}"
+    dest: /tmp/calico.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Install Calico network
+  command: kubectl apply -f /tmp/calico.yaml --validate=false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for Calico to be ready
+  command: kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n kube-system --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Install local-path storage provisioner
+  command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Set local-path as default storage class
+  command: kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Generate join command
+  command: kubeadm token create --print-join-command
+  register: join_cmd
+
+- name: Save join command
+  set_fact:
+    kube_join_cmd: "{{ join_cmd.stdout }} --cri-socket={{ cri_socket }}"

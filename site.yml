@@ -1,11 +1,13 @@
 - hosts: all
   roles:
-    - k8s_common
+    - common
+    - docker
+    - kubernetes
 
 - hosts: masters
   roles:
-    - k8s_master
+    - master
 
 - hosts: workers
   roles:
-    - k8s_worker
+    - worker
