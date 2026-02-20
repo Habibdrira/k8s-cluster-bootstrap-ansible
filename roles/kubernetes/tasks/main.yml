@@ -3,6 +3,7 @@
   file:
     path: /etc/apt/keyrings
     state: directory
+    mode: '0755'
 
 - name: Download Kubernetes GPG key
   get_url:
@@ -31,6 +32,7 @@
 
 - name: Hold Kubernetes packages
   command: apt-mark hold kubelet kubeadm kubectl
+  changed_when: false
 
 - name: Configure kubelet runtime
   copy:

@@ -48,6 +48,7 @@
   file:
     path: /opt/cni/bin
     state: directory
+    mode: '0755'
 
 - name: Download CNI plugins
   get_url:
@@ -116,9 +117,7 @@
       Requires=docker.service
 
       [Service]
-      ExecStart=/usr/local/bin/cri-dockerd \
-        --docker-endpoint unix:///var/run/docker.sock \
-        --network-plugin=cni
+      ExecStart=/usr/local/bin/cri-dockerd --docker-endpoint unix:///var/run/docker.sock
       Restart=always
       RestartSec=5
 

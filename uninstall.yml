@@ -9,7 +9,8 @@
     loop:
       - kubelet
       - docker
-      - cri-docker
+      - cri-docker.service
+      - cri-docker.socket
 
   - name: Reset kubeadm
     command: kubeadm reset -f
@@ -18,9 +19,7 @@
   - name: Remove packages
     apt:
       name:
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
+        - docker.io
         - kubelet
         - kubeadm
         - kubectl
@@ -36,6 +35,10 @@
       - /var/lib/kubelet
       - /var/lib/etcd
       - /var/lib/docker
+      - /opt/cni
+      - /etc/systemd/system/cri-docker.service
+      - /etc/systemd/system/cri-docker.socket
+      - /usr/local/bin/cri-dockerd
 
   - name: Reload systemd
     command: systemctl daemon-reload

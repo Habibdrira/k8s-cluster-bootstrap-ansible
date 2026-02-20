@@ -17,6 +17,7 @@
   file:
     path: ~/.kube
     state: directory
+    mode: '0700'
 
 - name: Create kube directory for user
   file:
@@ -24,12 +25,14 @@
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
+    mode: '0700'
 
 - name: Copy kube config for root
   copy:
     src: /etc/kubernetes/admin.conf
     dest: ~/.kube/config
     remote_src: yes
+    mode: '0600'
 
 - name: Copy kube config for user
   copy:
@@ -38,6 +41,7 @@
     remote_src: yes
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
+    mode: '0600'
 
 - name: Wait for API server
   command: kubectl get nodes
@@ -45,6 +49,7 @@
   retries: 30
   delay: 10
   until: api_ready.rc == 0
+  changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
@@ -80,6 +85,7 @@
 - name: Generate join command
   command: kubeadm token create --print-join-command
   register: join_cmd
+  changed_when: false
 
 - name: Save join command
   set_fact:
