@@ -1,6 +1,15 @@
+# Ansible configuration
+ansible_become: true
+
+# Kubernetes configuration
 kubernetes_version: "1.29"
 pod_network_cidr: "192.168.0.0/16"
+
+# Container Runtime
 cri_socket: "unix:///var/run/cri-dockerd.sock"
 
+# Network
 calico_manifest_url: "https://docs.projectcalico.org/manifests/calico.yaml"
+
+# User configuration
 cluster_user: "{{ ansible_user }}"

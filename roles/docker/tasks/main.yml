@@ -16,6 +16,30 @@
     state: started
     enabled: yes
 
+- name: Configure Docker daemon
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "100m"
+        },
+        "storage-driver": "overlay2"
+      }
+
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+
+- name: Restart Docker to apply daemon config
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: yes
+
 #################################################
 # Install CNI plugins (required)
 #################################################
