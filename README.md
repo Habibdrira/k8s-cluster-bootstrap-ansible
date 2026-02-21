@@ -112,13 +112,16 @@ Edit `group_vars/all.yml` to change versions or CIDR.
 ## 🚀 Deployment
 
 ```bash
-# 1. Test connectivity
+# 1. Install required Ansible collections
+ansible-galaxy collection install -r requirements.yml
+
+# 2. Test connectivity
 ansible all -m ping
 
-# 2. Check syntax
+# 3. Check syntax
 ansible-playbook site.yml --syntax-check
 
-# 3. Deploy the cluster
+# 4. Deploy the cluster
 ansible-playbook site.yml
 ```
 
@@ -251,6 +254,7 @@ docker compose version
 .
 ├── ansible.cfg                          # Ansible configuration
 ├── inventory.ini                        # ⚠️ Update with your IPs
+├── requirements.yml                     # Ansible Galaxy collection requirements
 ├── site.yml                             # Main playbook
 ├── uninstall.yml                        # Uninstall playbook
 ├── ssh_config                           # ⚠️ Update with your IPs
