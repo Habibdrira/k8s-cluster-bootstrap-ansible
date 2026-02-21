@@ -1,6 +1,6 @@
-# Kubernetes Cluster Bootstrap with Ansible
+# ☸️ Kubernetes Cluster Bootstrap with Ansible
 
-Automated deployment of a Kubernetes cluster (1 Master + N Workers) with Ansible — **100% idempotent, modular, and production-ready**.
+> Automated deployment of a production-ready Kubernetes cluster (1 Master + N Workers) using Ansible — **100% idempotent, modular, tested in real conditions**.
 
 ---
 
@@ -9,12 +9,12 @@ Automated deployment of a Kubernetes cluster (1 Master + N Workers) with Ansible
 | Component | Version | Description |
 |-----------|---------|-------------|
 | **Docker** | latest via `docker.io` | Container runtime with systemd cgroupdriver |
-| **cri-dockerd** | `cri_dockerd_version` (default: 0.3.15) | CRI shim for Docker with `--network-plugin=cni` |
-| **CNI plugins** | `cni_plugins_version` (default: 1.5.0) | Container network plugins |
-| **kubeadm / kubelet / kubectl** | `kubernetes_version` (default: 1.32.3) | Kubernetes tooling |
-| **Calico** | v3.28.0 | Pod network CNI (CIDR: `10.244.0.0/16`) |
-| **Local Path Provisioner** | v0.0.28 | Default storage class |
-| **Docker Compose** | `docker_compose_version` (default: 2.27.0) | Docker Compose v2 CLI plugin (auto-installed) |
+| **cri-dockerd** | `0.3.15` (configurable) | CRI shim for Docker with `--network-plugin=cni` |
+| **CNI plugins** | `1.5.0` (configurable) | Container network interface plugins |
+| **kubeadm / kubelet / kubectl** | `1.32.3` (configurable) | Kubernetes core tooling |
+| **Calico** | `v3.28.0` | Pod network CNI — CIDR `10.244.0.0/16` |
+| **Local Path Provisioner** | `v0.0.28` | Default storage class (auto-provisioning) |
+| **Docker Compose** | `2.27.0` (configurable) | Docker Compose v2 CLI plugin |
 
 ---
 
@@ -23,8 +23,8 @@ Automated deployment of a Kubernetes cluster (1 Master + N Workers) with Ansible
 ```
 ┌─────────────────────────────────────────────────┐
 │               Control Machine                    │
-│           (your workstation / CI)                │
-│        ansible-playbook site.yml                 │
+│        (master node / your workstation)          │
+│           ansible-playbook site.yml              │
 └───────────────┬─────────────────────────────────┘
                 │ SSH
     ┌───────────┼───────────────────┐
@@ -38,16 +38,70 @@ Automated deployment of a Kubernetes cluster (1 Master + N Workers) with Ansible
               (example IPs — replace with yours)
 ```
 
-> ✅ **CIDR**: The VMs sit on `192.168.1.x`. Pod network is `10.244.0.0/16` (standard Calico/Flannel safe CIDR) which does **not** overlap with host networks.
+> ✅ **CIDR**: Pod network is `10.244.0.0/16` — does **not** overlap with typical `192.168.x.x` VM networks.
 
 ---
 
 ## 📋 Prerequisites
 
-- **Ubuntu 22.04** (or 20.04) machines — 1 master + N workers
-- **SSH access** to all nodes with an ed25519 key (`~/.ssh/id_ed25519`)
-- **Ansible** ≥ 2.9 installed on the control machine
-- **Internet access** from each VM during deployment
+### Control machine (where you run Ansible)
+- **Ubuntu 22.04** (tested) or any Linux/macOS
+- **Python 3.10+** and **pip3**
+- **Ansible ≥ 2.14** installed via pip (see installation below — **do NOT use `apt`**)
+- **SSH key** (`~/.ssh/id_ed25519`) with access to all nodes
+
+### Target nodes (master + workers)
+- **Ubuntu 22.04** (or 20.04)
+- **Passwordless sudo** configured
+- **Internet access** during deployment
+
+---
+
+## 🐍 Ansible Installation (Control Machine)
+
+> ⚠️ **Important**: Ubuntu 22.04 ships Ansible `2.12.0` via `apt` which is **too old** and causes `ansible-galaxy` errors. You **must** install Ansible via `pip3`.
+
+### Step 1 — Install pip3
+
+```bash
+sudo apt update && sudo apt install -y python3-pip
+```
+
+### Step 2 — Install Ansible via pip
+
+```bash
+pip3 install --upgrade ansible
+# Installs ansible-core 2.17.x
+```
+
+### Step 3 — Add pip binaries to PATH
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Make it permanent:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Step 4 — Verify
+
+```bash
+ansible --version
+# ansible [core 2.17.x]
+# executable location = /home/<user>/.local/bin/ansible
+```
+
+### Step 5 — Install required Ansible collections
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+# Starting galaxy collection install process
+# Nothing to do. All requested collections are already installed.
+```
 
 ---
 
@@ -60,10 +114,10 @@ On each VM, configure a static IP with Netplan (`/etc/netplan/00-installer-confi
 ### Step 2 — Configure SSH
 
 ```bash
-# Generate an SSH key
+# Generate an SSH key (on control machine)
 ssh-keygen -t ed25519 -C "k8s-cluster"
 
-# Copy to all VMs (replace IPs with yours)
+# Copy to all nodes (replace IPs with yours)
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.10
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.20
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.30
@@ -71,10 +125,11 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.30
 
 ### Step 3 — Configure passwordless sudo
 
-On each VM:
+On **each** node:
 ```bash
 sudo visudo
-# Add: ubuntu ALL=(ALL) NOPASSWD:ALL
+# Add this line:
+ubuntu ALL=(ALL) NOPASSWD:ALL
 ```
 
 ### Step 4 — ⚠️ Update IPs (REQUIRED)
@@ -82,13 +137,13 @@ sudo visudo
 > ⚠️ **Two files must be updated** with your actual VM IP addresses:
 
 **`inventory.ini`**:
-```ini
+```
 [masters]
-master1 ansible_host=192.168.1.10   # ← replace with your IP
+master1 ansible_host=192.168.1.10   # ← replace with your master IP
 
 [workers]
-worker1 ansible_host=192.168.1.20   # ← replace with your IP
-worker2 ansible_host=192.168.1.30   # ← replace with your IP
+worker1 ansible_host=192.168.1.20   # ← replace with your worker IP
+worker2 ansible_host=192.168.1.30   # ← replace with your worker IP
 
 [all:vars]
 ansible_user=ubuntu
@@ -99,29 +154,29 @@ ansible_ssh_private_key_file=~/.ssh/id_ed25519
 **`ssh_config`**:
 ```
 Host master1
-    HostName 192.168.1.10   # ← replace with your IP
-...
+    HostName 192.168.1.10   # ← replace with your master IP
+Host worker1
+    HostName 192.168.1.20   # ← replace
+Host worker2
+    HostName 192.168.1.30   # ← replace
 ```
 
-### Step 5 — Customize variables (optional)
+### Step 5 — Customize versions (optional)
 
-Edit `group_vars/all.yml` to change versions or CIDR.
+Edit `group_vars/all.yml` to change Kubernetes version, CIDR, or component versions.
 
 ---
 
 ## 🚀 Deployment
 
 ```bash
-# 1. Install required Ansible collections
-ansible-galaxy collection install -r requirements.yml
-
-# 2. Test connectivity
+# 1. Test connectivity
 ansible all -m ping
 
-# 3. Check syntax
+# 2. Check syntax
 ansible-playbook site.yml --syntax-check
 
-# 4. Deploy the cluster
+# 3. Deploy the cluster
 ansible-playbook site.yml
 ```
 
