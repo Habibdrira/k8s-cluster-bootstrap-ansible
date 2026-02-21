@@ -16,9 +16,15 @@
   changed_when: not master_cluster_init.stat.exists
   when: not master_cluster_init.stat.exists
 
+- name: Remove kubeadm config file
+  ansible.builtin.file:
+    path: /tmp/kubeadm-config.yaml
+    state: absent
+  when: master_kubeadm_init_output.changed
+
 - name: Create kube directory for root
   ansible.builtin.file:
-    path: ~/.kube
+    path: /root/.kube
     state: directory
     mode: '0700'
 
@@ -33,7 +39,7 @@
 - name: Copy kube config for root
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
-    dest: ~/.kube/config
+    dest: /root/.kube/config
     remote_src: true
     mode: '0600'
   when: not master_cluster_init.stat.exists
