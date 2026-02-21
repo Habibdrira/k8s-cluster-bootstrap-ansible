@@ -36,6 +36,7 @@
     dest: ~/.kube/config
     remote_src: true
     mode: '0600'
+  when: not master_cluster_init.stat.exists
 
 - name: Copy kube config for user
   ansible.builtin.copy:
@@ -45,6 +46,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0600'
+  when: not master_cluster_init.stat.exists
 
 - name: Wait for API server
   ansible.builtin.command: kubectl get nodes
@@ -76,6 +78,7 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: false
   failed_when: false
+  when: not master_cluster_init.stat.exists
 
 - name: Install local-path storage provisioner
   ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.28/deploy/local-path-storage.yaml
