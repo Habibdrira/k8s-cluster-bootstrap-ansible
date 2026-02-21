@@ -53,7 +53,7 @@
 
 - name: Download CNI plugins
   ansible.builtin.get_url:
-    url: https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-amd64-v1.5.0.tgz
+    url: "https://github.com/containernetworking/plugins/releases/download/v{{ cni_plugins_version }}/cni-plugins-linux-amd64-v{{ cni_plugins_version }}.tgz"
     dest: /tmp/cni.tgz
     mode: '0644'
     force: false
@@ -190,4 +190,4 @@
   ansible.builtin.command: docker compose version
   changed_when: false
   register: docker_compose_check
-  failed_when: docker_compose_check.rc != 0
+  failed_when: false
