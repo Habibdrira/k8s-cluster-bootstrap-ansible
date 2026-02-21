@@ -20,7 +20,7 @@
   ansible.builtin.file:
     path: /tmp/kubeadm-config.yaml
     state: absent
-  when: master_kubeadm_init_output.changed
+  when: not master_cluster_init.stat.exists
 
 - name: Create kube directory for root
   ansible.builtin.file:

@@ -1,20 +1,20 @@
-# Kubernetes Cluster Bootstrap avec Ansible
+# Kubernetes Cluster Bootstrap with Ansible
 
-Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansible — **100% idempotent, modulaire et sans erreurs**.
+Automated deployment of a Kubernetes cluster (1 Master + N Workers) with Ansible — **100% idempotent, modular, and production-ready**.
 
 ---
 
-## 🚀 Ce qui est installé
+## 🚀 What Gets Installed
 
-| Composant | Version | Description |
+| Component | Version | Description |
 |-----------|---------|-------------|
-| **Docker** | dernière via `docker.io` | Runtime de conteneurs avec cgroupdriver systemd |
-| **cri-dockerd** | v0.3.15 | Shim CRI pour Docker, configuré avec `--network-plugin=cni` |
-| **CNI plugins** | v1.5.0 | Plugins réseau pour les conteneurs |
-| **kubeadm / kubelet / kubectl** | **1.32** | Outils Kubernetes |
-| **Calico** | v3.28.0 | CNI réseau des pods (CIDR : `192.168.0.0/16`) |
-| **Local Path Provisioner** | v0.0.28 | Storage class par défaut |
-| **Docker Compose** | v2.27.0 | Plugin CLI Docker Compose v2 (installé automatiquement) |
+| **Docker** | latest via `docker.io` | Container runtime with systemd cgroupdriver |
+| **cri-dockerd** | `cri_dockerd_version` (default: 0.3.15) | CRI shim for Docker with `--network-plugin=cni` |
+| **CNI plugins** | `cni_plugins_version` (default: 1.5.0) | Container network plugins |
+| **kubeadm / kubelet / kubectl** | `kubernetes_version` (default: 1.32.3) | Kubernetes tooling |
+| **Calico** | v3.28.0 | Pod network CNI (CIDR: `10.244.0.0/16`) |
+| **Local Path Provisioner** | v0.0.28 | Default storage class |
+| **Docker Compose** | `docker_compose_version` (default: 2.27.0) | Docker Compose v2 CLI plugin (auto-installed) |
 
 ---
 
@@ -22,9 +22,9 @@ Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansib
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  Machine de contrôle             │
-│              (votre poste / CI)                  │
-│         ansible-playbook site.yml                │
+│               Control Machine                    │
+│           (your workstation / CI)                │
+│        ansible-playbook site.yml                 │
 └───────────────┬─────────────────────────────────┘
                 │ SSH
     ┌───────────┼───────────────────┐
@@ -35,60 +35,60 @@ Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansib
 │  plane  │ │  node   │       │  node   │
 └─────────┘ └─────────┘       └─────────┘
 192.168.1.10  192.168.1.20    192.168.1.30
-              (IPs d'exemple — à remplacer)
+              (example IPs — replace with yours)
 ```
 
-> ⚠️ **CIDR important** : Le sous-réseau des VMs est `192.168.1.x`. Calico utilise donc `192.168.0.0/16` pour les pods afin d'éviter tout conflit de routage.
+> ✅ **CIDR**: The VMs sit on `192.168.1.x`. Pod network is `10.244.0.0/16` (standard Calico/Flannel safe CIDR) which does **not** overlap with host networks.
 
 ---
 
-## 📋 Prérequis
+## 📋 Prerequisites
 
-- **Machines Ubuntu 22.04** (ou 20.04) — 1 master + N workers
-- **Accès SSH** à tous les nœuds avec clé ed25519 (`~/.ssh/id_ed25519`)
-- **Ansible** ≥ 2.9 installé sur la machine de contrôle
-- **Accès Internet** depuis chaque VM pendant le déploiement
+- **Ubuntu 22.04** (or 20.04) machines — 1 master + N workers
+- **SSH access** to all nodes with an ed25519 key (`~/.ssh/id_ed25519`)
+- **Ansible** ≥ 2.9 installed on the control machine
+- **Internet access** from each VM during deployment
 
 ---
 
-## 🔧 Configuration pas à pas
+## 🔧 Step-by-Step Configuration
 
-### Étape 1 — Configurer les IPs statiques sur vos VMs
+### Step 1 — Configure static IPs on your VMs
 
-Sur chaque VM, configurez une IP statique avec Netplan (`/etc/netplan/00-installer-config.yaml`).
+On each VM, configure a static IP with Netplan (`/etc/netplan/00-installer-config.yaml`).
 
-### Étape 2 — Configurer SSH
+### Step 2 — Configure SSH
 
 ```bash
-# Générer une clé SSH
+# Generate an SSH key
 ssh-keygen -t ed25519 -C "k8s-cluster"
 
-# Copier sur toutes les VMs (remplacez les IPs par les vôtres)
+# Copy to all VMs (replace IPs with yours)
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.10
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.20
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.30
 ```
 
-### Étape 3 — Configurer sudo sans mot de passe
+### Step 3 — Configure passwordless sudo
 
-Sur chaque VM :
+On each VM:
 ```bash
 sudo visudo
-# Ajouter : ubuntu ALL=(ALL) NOPASSWD:ALL
+# Add: ubuntu ALL=(ALL) NOPASSWD:ALL
 ```
 
-### Étape 4 — ⚠️ Mettre à jour les IPs (OBLIGATOIRE)
+### Step 4 — ⚠️ Update IPs (REQUIRED)
 
-> ⚠️ **Double mise à jour obligatoire** : Vous devez mettre à jour les adresses IP dans **deux fichiers** :
+> ⚠️ **Two files must be updated** with your actual VM IP addresses:
 
-**`inventory.ini`** :
+**`inventory.ini`**:
 ```ini
 [masters]
-master1 ansible_host=192.168.1.10   # ← remplacer par votre IP
+master1 ansible_host=192.168.1.10   # ← replace with your IP
 
 [workers]
-worker1 ansible_host=192.168.1.20   # ← remplacer par votre IP
-worker2 ansible_host=192.168.1.30   # ← remplacer par votre IP
+worker1 ansible_host=192.168.1.20   # ← replace with your IP
+worker2 ansible_host=192.168.1.30   # ← replace with your IP
 
 [all:vars]
 ansible_user=ubuntu
@@ -96,57 +96,57 @@ ansible_become=true
 ansible_ssh_private_key_file=~/.ssh/id_ed25519
 ```
 
-**`ssh_config`** :
+**`ssh_config`**:
 ```
 Host master1
-    HostName 192.168.1.10   # ← remplacer par votre IP
+    HostName 192.168.1.10   # ← replace with your IP
 ...
 ```
 
-### Étape 5 — Personnaliser les variables (optionnel)
+### Step 5 — Customize variables (optional)
 
-Éditez `group_vars/all.yml` si vous souhaitez modifier les versions ou le CIDR.
+Edit `group_vars/all.yml` to change versions or CIDR.
 
 ---
 
-## 🚀 Déploiement
+## 🚀 Deployment
 
 ```bash
-# 1. Tester la connectivité
+# 1. Test connectivity
 ansible all -m ping
 
-# 2. Vérifier la syntaxe
+# 2. Check syntax
 ansible-playbook site.yml --syntax-check
 
-# 3. Déployer le cluster
+# 3. Deploy the cluster
 ansible-playbook site.yml
 ```
 
 ---
 
-## ✅ Vérification post-déploiement
+## ✅ Post-deployment Verification
 
 ```bash
-# Se connecter au master
+# Connect to the master
 ssh ubuntu@192.168.1.10
 
-# Vérifier les nœuds (tous doivent être Ready)
+# Check nodes (all must be Ready)
 kubectl get nodes
 # NAME      STATUS   ROLES           AGE   VERSION
-# master1   Ready    control-plane   5m    v1.32.x
-# worker1   Ready    <none>          4m    v1.32.x
-# worker2   Ready    <none>          4m    v1.32.x
+# master1   Ready    control-plane   5m    v1.32.3
+# worker1   Ready    <none>          4m    v1.32.3
+# worker2   Ready    <none>          4m    v1.32.3
 
-# Vérifier tous les pods système
+# Check all system pods
 kubectl get pods -n kube-system
 
-# Vérifier la storage class par défaut
+# Check default storage class
 kubectl get storageclass
 
-# Vérifier la version de Kubernetes
+# Check Kubernetes version
 kubectl version
 
-# Vérifier les infos du cluster
+# Check cluster info
 kubectl cluster-info
 ```
 
@@ -154,58 +154,59 @@ kubectl cluster-info
 
 ## 🐳 Docker Compose
 
-Docker Compose v2 est **installé automatiquement** par le rôle `docker` sur tous les nœuds. Il n'interfère pas avec Kubernetes (kubelet, cri-dockerd, Calico).
+Docker Compose v2 is **automatically installed** by the `docker` role on all nodes. It does not interfere with Kubernetes (kubelet, cri-dockerd, Calico).
 
 ```bash
-# Vérifier l'installation
+# Verify installation
 docker compose version
 # Docker Compose version v2.27.0
 ```
 
 ---
 
-## ♻️ Idempotence
+## ♻️ Idempotency
 
-Le playbook `site.yml` est **entièrement idempotent** : il peut être relancé plusieurs fois sur un cluster déjà déployé sans causer d'erreurs ni de modifications non désirées. Les vérifications suivantes garantissent l'idempotence :
+The `site.yml` playbook is **fully idempotent**: it can be run multiple times on an already-deployed cluster without errors or unintended changes. The following checks ensure idempotency:
 
-- **cri-dockerd** : vérifié via `stat` avant téléchargement
-- **Docker Compose** : vérifié via `stat` avant téléchargement
-- **kubeadm init** : vérifié via la présence de `/etc/kubernetes/admin.conf`
-- **Calico / storage provisioner** : appliqués uniquement si le cluster vient d'être initialisé
-- **apt-mark hold** : géré via `dpkg_selections` (idempotent nativement)
+- **cri-dockerd**: checked via `stat` before download
+- **Docker Compose**: checked via `stat` before download
+- **kubeadm init**: checked via presence of `/etc/kubernetes/admin.conf`
+- **Calico / storage provisioner**: applied only on first cluster initialization
+- **kubeadm config**: `/tmp/kubeadm-config.yaml` removed immediately after `kubeadm init`
+- **apt-mark hold**: managed via `dpkg_selections` (natively idempotent)
 
 ---
 
-## 🗑️ Désinstallation
+## 🗑️ Uninstall
 
 ```bash
-# Désinstaller complètement le cluster et tous les composants
+# Completely remove the cluster and all components
 ansible-playbook -i inventory.ini uninstall.yml
 ```
 
-Le playbook `uninstall.yml` supprime :
-- Les services kubelet, docker, cri-docker
-- Les packages (docker.io, kubelet, kubeadm, kubectl)
-- Les répertoires Kubernetes, Docker, CNI
-- Les keyrings et sources APT Kubernetes
-- Les configs kube (`~/.kube`) pour root et l'utilisateur
-- Les fichiers temporaires (`/tmp/cri-dockerd*`, `/tmp/cni.tgz`, etc.)
-- La configuration Docker daemon (`/etc/docker/daemon.json`)
+The `uninstall.yml` playbook removes:
+- kubelet, docker, cri-docker services
+- Packages (docker.io, kubelet, kubeadm, kubectl)
+- Kubernetes, Docker, CNI directories
+- Kubernetes APT keyrings and sources
+- Kube configs (`/root/.kube`, `/home/<user>/.kube`)
+- Temporary files (`/tmp/cri-dockerd*`, `/tmp/cni.tgz`, etc.)
+- Docker daemon configuration (`/etc/docker/daemon.json`)
 
 ---
 
-## 🔍 Dépannage
+## 🔍 Troubleshooting
 
-### Nœuds en état `NotReady`
+### Nodes in `NotReady` state
 
 ```bash
 kubectl get pods -n kube-system -l k8s-app=calico-node
 kubectl logs -n kube-system -l k8s-app=calico-node
 ```
 
-Vérifiez que le CIDR des pods ne chevauche pas le réseau des VMs.
+Verify that the pod CIDR (`10.244.0.0/16`) does not overlap with your VM network.
 
-### `kubeadm init` échoue avec une erreur CRI
+### `kubeadm init` fails with CRI error
 
 ```bash
 sudo systemctl status cri-docker.service
@@ -213,29 +214,29 @@ sudo systemctl status cri-docker.socket
 sudo systemctl restart cri-docker.socket cri-docker.service
 ```
 
-### Les workers ne rejoignent pas le cluster
+### Workers cannot join the cluster
 
 ```bash
 sudo systemctl status kubelet
 sudo journalctl -u kubelet -n 50
 ```
 
-### Erreur de connexion SSH Ansible
+### Ansible SSH connection error
 
 ```bash
 ansible all -m ping
-# Vérifier que les IPs dans inventory.ini ET ssh_config correspondent aux vraies IPs
-ssh -i ~/.ssh/id_ed25519 ubuntu@<IP_VM>
+# Verify IPs in inventory.ini AND ssh_config match actual VM IPs
+ssh -i ~/.ssh/id_ed25519 ubuntu@<VM_IP>
 ```
 
-### Réinitialiser un nœud manuellement
+### Manually reset a node
 
 ```bash
 sudo kubeadm reset -f
-sudo rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd ~/.kube
+sudo rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd /root/.kube
 ```
 
-### Docker Compose non trouvé
+### Docker Compose not found
 
 ```bash
 ls -la /usr/local/lib/docker/cli-plugins/docker-compose
@@ -244,44 +245,45 @@ docker compose version
 
 ---
 
-## 🗂️ Structure du projet
+## 🗂️ Project Structure
 
 ```
 .
-├── ansible.cfg                          # Configuration Ansible
-├── inventory.ini                        # ⚠️ À mettre à jour avec vos IPs
-├── site.yml                             # Playbook principal
-├── uninstall.yml                        # Playbook de désinstallation
-├── ssh_config                           # ⚠️ À mettre à jour avec vos IPs
+├── ansible.cfg                          # Ansible configuration
+├── inventory.ini                        # ⚠️ Update with your IPs
+├── site.yml                             # Main playbook
+├── uninstall.yml                        # Uninstall playbook
+├── ssh_config                           # ⚠️ Update with your IPs
 ├── group_vars/
-│   └── all.yml                          # Variables globales
+│   └── all.yml                          # Global variables
 └── roles/
     ├── common/
-    │   └── tasks/main.yml               # Swap, modules kernel, sysctl
+    │   └── tasks/main.yml               # Swap, kernel modules, sysctl
     ├── docker/
-    │   ├── handlers/main.yml            # Handler restart Docker
+    │   ├── handlers/main.yml            # Docker restart handler
     │   └── tasks/main.yml               # Docker + cri-dockerd + CNI + Compose
     ├── kubernetes/
-    │   ├── handlers/main.yml            # Handler restart kubelet
+    │   ├── handlers/main.yml            # kubelet restart handler
     │   └── tasks/main.yml               # kubeadm/kubelet/kubectl
     ├── master/
-    │   ├── tasks/main.yml               # Init cluster, Calico, storage
+    │   ├── tasks/main.yml               # Cluster init, Calico, storage
     │   └── templates/kubeadm-config.yaml.j2
     └── worker/
-        └── tasks/main.yml               # Rejoindre le cluster
+        └── tasks/main.yml               # Join the cluster
 ```
 
 ---
 
-## ⚙️ Variables disponibles
+## ⚙️ Available Variables
 
-| Variable | Valeur par défaut | Description |
-|----------|-------------------|-------------|
-| `kubernetes_version` | `"1.32"` | Version de Kubernetes à installer |
-| `pod_network_cidr` | `"192.168.0.0/16"` | CIDR réseau des pods (Calico) |
-| `cri_socket` | `"unix:///var/run/cri-dockerd.sock"` | Socket CRI Docker |
-| `calico_manifest_url` | URL Calico v3.28.0 | URL du manifest Calico |
-| `docker_compose_version` | `"2.27.0"` | Version de Docker Compose v2 |
-| `cri_dockerd_version` | `"0.3.15"` | Version de cri-dockerd |
-| `cluster_user` | `"{{ ansible_user }}"` | Utilisateur du cluster |
-| `ansible_become` | `true` | Élévation de privilèges automatique |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `kubernetes_version` | `"1.32.3"` | Kubernetes version (full semver required by kubeadm) |
+| `pod_network_cidr` | `"10.244.0.0/16"` | Pod network CIDR for Calico (no overlap with `192.168.x.x`) |
+| `cri_socket` | `"unix:///var/run/cri-dockerd.sock"` | CRI Docker socket path |
+| `cri_dockerd_version` | `"0.3.15"` | cri-dockerd version |
+| `cni_plugins_version` | `"1.5.0"` | CNI plugins version |
+| `calico_manifest_url` | Calico v3.28.0 URL | Calico manifest URL |
+| `docker_compose_version` | `"2.27.0"` | Docker Compose v2 version |
+| `cluster_user` | `"{{ ansible_user }}"` | Cluster user |
+| `ansible_become` | `true` | Automatic privilege escalation |

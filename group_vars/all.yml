@@ -2,12 +2,13 @@
 ansible_become: true
 
 # Kubernetes configuration
-kubernetes_version: "1.32"
-pod_network_cidr: "192.168.0.0/16"
+kubernetes_version: "1.32.3"
+pod_network_cidr: "10.244.0.0/16"
 
 # Container Runtime
 cri_socket: "unix:///var/run/cri-dockerd.sock"
 cri_dockerd_version: "0.3.15"
+cni_plugins_version: "1.5.0"
 
 # Network
 calico_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml"
