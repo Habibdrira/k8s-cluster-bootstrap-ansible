@@ -61,12 +61,14 @@
     url: "{{ calico_manifest_url }}"
     dest: /tmp/calico.yaml
     mode: '0644'
+  when: not master_cluster_init.stat.exists
 
 - name: Install Calico network
   ansible.builtin.command: kubectl apply -f /tmp/calico.yaml
   changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  when: not master_cluster_init.stat.exists
 
 - name: Wait for Calico to be ready
   ansible.builtin.command: kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n kube-system --timeout=300s
@@ -80,6 +82,7 @@
   changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  when: not master_cluster_init.stat.exists
 
 - name: Set local-path as default storage class
   ansible.builtin.command: kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
@@ -87,6 +90,7 @@
   failed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  when: not master_cluster_init.stat.exists
 
 - name: Generate join command
   ansible.builtin.command: kubeadm token create --print-join-command

@@ -161,3 +161,25 @@
     name: cri-docker.service
     enabled: true
     state: started
+
+#################################################
+# Install Docker Compose v2
+#################################################
+
+- name: Check if Docker Compose is already installed
+  ansible.builtin.stat:
+    path: /usr/local/lib/docker/cli-plugins/docker-compose
+  register: docker_compose_binary
+
+- name: Create Docker CLI plugins directory
+  ansible.builtin.file:
+    path: /usr/local/lib/docker/cli-plugins
+    state: directory
+    mode: '0755'
+
+- name: Download Docker Compose
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
+    dest: /usr/local/lib/docker/cli-plugins/docker-compose
+    mode: '0755'
+  when: not docker_compose_binary.stat.exists

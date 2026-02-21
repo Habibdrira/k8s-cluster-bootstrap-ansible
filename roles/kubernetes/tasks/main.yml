@@ -39,8 +39,13 @@
     update_cache: true
 
 - name: Hold Kubernetes packages
-  ansible.builtin.command: apt-mark hold kubelet kubeadm kubectl
-  changed_when: false
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
 
 - name: Configure kubelet runtime
   ansible.builtin.copy:
