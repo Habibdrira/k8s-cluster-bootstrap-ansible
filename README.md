@@ -262,6 +262,7 @@ docker compose version
     │   ├── handlers/main.yml            # Handler restart Docker
     │   └── tasks/main.yml               # Docker + cri-dockerd + CNI + Compose
     ├── kubernetes/
+    │   ├── handlers/main.yml            # Handler restart kubelet
     │   └── tasks/main.yml               # kubeadm/kubelet/kubectl
     ├── master/
     │   ├── tasks/main.yml               # Init cluster, Calico, storage
