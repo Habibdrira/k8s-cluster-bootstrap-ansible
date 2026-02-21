@@ -49,6 +49,12 @@
       KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock
     mode: '0644'
 
+- name: Wait for cri-dockerd socket to be available
+  ansible.builtin.wait_for:
+    path: /var/run/cri-dockerd.sock
+    state: present
+    timeout: 30
+
 - name: Restart kubelet
   ansible.builtin.systemd:
     name: kubelet

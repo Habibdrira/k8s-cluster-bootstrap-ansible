@@ -130,7 +130,7 @@
       Requires=docker.service
 
       [Service]
-      ExecStart=/usr/local/bin/cri-dockerd --docker-endpoint unix:///var/run/docker.sock
+      ExecStart=/usr/local/bin/cri-dockerd --docker-endpoint unix:///var/run/docker.sock --network-plugin=cni
       Restart=always
       RestartSec=5
 
@@ -141,6 +141,9 @@
 #################################################
 # Enable services
 #################################################
+
+- name: Flush handlers to ensure Docker is restarted before starting cri-docker
+  ansible.builtin.meta: flush_handlers
 
 - name: Reload systemd
   ansible.builtin.systemd:

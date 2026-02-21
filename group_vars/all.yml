@@ -3,7 +3,7 @@ ansible_become: true
 
 # Kubernetes configuration
 kubernetes_version: "1.29"
-pod_network_cidr: "10.244.0.0/16"
+pod_network_cidr: "192.168.0.0/16"
 
 # Container Runtime
 cri_socket: "unix:///var/run/cri-dockerd.sock"
