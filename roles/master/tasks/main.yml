@@ -1,28 +1,29 @@
 - name: Check cluster initialized
-  stat:
+  ansible.builtin.stat:
     path: /etc/kubernetes/admin.conf
-  register: cluster_init
+  register: master_cluster_init
 
 - name: Generate kubeadm config
-  template:
+  ansible.builtin.template:
     src: kubeadm-config.yaml.j2
     dest: /tmp/kubeadm-config.yaml
-  when: not cluster_init.stat.exists
+    mode: '0600'
+  when: not master_cluster_init.stat.exists
 
 - name: Initialize cluster
-  command: kubeadm init --config=/tmp/kubeadm-config.yaml
-  register: kubeadm_init_output
-  changed_when: not cluster_init.stat.exists
-  when: not cluster_init.stat.exists
+  ansible.builtin.command: kubeadm init --config=/tmp/kubeadm-config.yaml
+  register: master_kubeadm_init_output
+  changed_when: not master_cluster_init.stat.exists
+  when: not master_cluster_init.stat.exists
 
 - name: Create kube directory for root
-  file:
+  ansible.builtin.file:
     path: ~/.kube
     state: directory
     mode: '0700'
 
 - name: Create kube directory for user
-  file:
+  ansible.builtin.file:
     path: /home/{{ ansible_user }}/.kube
     state: directory
     owner: "{{ ansible_user }}"
@@ -30,63 +31,68 @@
     mode: '0700'
 
 - name: Copy kube config for root
-  copy:
+  ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: ~/.kube/config
-    remote_src: yes
+    remote_src: true
     mode: '0600'
 
 - name: Copy kube config for user
-  copy:
+  ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: /home/{{ ansible_user }}/.kube/config
-    remote_src: yes
+    remote_src: true
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0600'
 
 - name: Wait for API server
-  command: kubectl get nodes
-  register: api_ready
+  ansible.builtin.command: kubectl get nodes
+  register: master_api_ready
   retries: 30
   delay: 10
-  until: api_ready.rc == 0
+  until: master_api_ready.rc == 0
   changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
 - name: Download Calico manifest
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ calico_manifest_url }}"
     dest: /tmp/calico.yaml
+    mode: '0644'
 
 - name: Install Calico network
-  command: kubectl apply -f /tmp/calico.yaml
+  ansible.builtin.command: kubectl apply -f /tmp/calico.yaml
+  changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
 - name: Wait for Calico to be ready
-  command: kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n kube-system --timeout=300s
+  ansible.builtin.command: kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n kube-system --timeout=300s
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
+  changed_when: false
+  failed_when: false
 
 - name: Install local-path storage provisioner
-  command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.28/deploy/local-path-storage.yaml
+  ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.28/deploy/local-path-storage.yaml
+  changed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
 - name: Set local-path as default storage class
-  command: kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  ansible.builtin.command: kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  changed_when: false
+  failed_when: false
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
 
 - name: Generate join command
-  command: kubeadm token create --print-join-command
-  register: join_cmd
+  ansible.builtin.command: kubeadm token create --print-join-command
+  register: master_join_cmd
   changed_when: false
 
 - name: Save join command
-  set_fact:
-    kube_join_cmd: "{{ join_cmd.stdout }} --cri-socket={{ cri_socket }}"
+  ansible.builtin.set_fact:
+    master_kube_join_cmd: "{{ master_join_cmd.stdout }} --cri-socket={{ cri_socket }}"

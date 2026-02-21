@@ -1,48 +1,56 @@
-
 - name: Create keyrings directory
-  file:
+  ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
 
+- name: Check for Kubernetes GPG key
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/kubernetes.gpg
+  register: kubernetes_gpg_key
+
 - name: Download Kubernetes GPG key
-  get_url:
-    url: https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key
+  ansible.builtin.get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key"
     dest: /tmp/kubernetes.key
+    mode: '0644'
+  when: not kubernetes_gpg_key.stat.exists
 
 - name: Convert Kubernetes GPG key
-  command: gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg /tmp/kubernetes.key
+  ansible.builtin.command: gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg /tmp/kubernetes.key
   args:
     creates: /etc/apt/keyrings/kubernetes.gpg
+  when: not kubernetes_gpg_key.stat.exists
 
 - name: Add Kubernetes repository
-  copy:
+  ansible.builtin.copy:
     dest: /etc/apt/sources.list.d/kubernetes.list
     content: |
-      deb [signed-by=/etc/apt/keyrings/kubernetes.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+      deb [signed-by=/etc/apt/keyrings/kubernetes.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/ /
+    mode: '0644'
 
 - name: Install Kubernetes packages
-  apt:
+  ansible.builtin.apt:
     name:
       - kubelet
       - kubeadm
       - kubectl
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Hold Kubernetes packages
-  command: apt-mark hold kubelet kubeadm kubectl
+  ansible.builtin.command: apt-mark hold kubelet kubeadm kubectl
   changed_when: false
 
 - name: Configure kubelet runtime
-  copy:
+  ansible.builtin.copy:
     dest: /etc/default/kubelet
     content: |
       KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock
+    mode: '0644'
 
 - name: Restart kubelet
-  systemd:
+  ansible.builtin.systemd:
     name: kubelet
     state: restarted
-    enabled: yes
-
+    enabled: true

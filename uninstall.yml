@@ -1,46 +1,48 @@
-- hosts: all
+- name: Uninstall Kubernetes cluster and all components
+  hosts: all
   tasks:
 
-  - name: Stop services
-    systemd:
-      name: "{{ item }}"
-      state: stopped
-    ignore_errors: true
-    loop:
-      - kubelet
-      - docker
-      - cri-docker.service
-      - cri-docker.socket
-
-  - name: Reset kubeadm
-    command: kubeadm reset -f
-    ignore_errors: true
-
-  - name: Remove packages
-    apt:
-      name:
-        - docker.io
+    - name: Stop services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+      failed_when: false
+      loop:
         - kubelet
-        - kubeadm
-        - kubectl
-      state: absent
-      purge: yes
+        - docker
+        - cri-docker.service
+        - cri-docker.socket
 
-  - name: Remove directories
-    file:
-      path: "{{ item }}"
-      state: absent
-    loop:
-      - /etc/kubernetes
-      - /var/lib/kubelet
-      - /var/lib/etcd
-      - /var/lib/docker
-      - /opt/cni
-      - /etc/systemd/system/cri-docker.service
-      - /etc/systemd/system/cri-docker.socket
-      - /usr/local/bin/cri-dockerd
+    - name: Reset kubeadm
+      ansible.builtin.command: kubeadm reset -f
+      changed_when: false
+      failed_when: false
 
-  - name: Reload systemd
-    systemd:
-      daemon_reload: yes
-    changed_when: false
+    - name: Remove packages
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: absent
+        purge: true
+
+    - name: Remove directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes
+        - /var/lib/kubelet
+        - /var/lib/etcd
+        - /var/lib/docker
+        - /opt/cni
+        - /etc/systemd/system/cri-docker.service
+        - /etc/systemd/system/cri-docker.socket
+        - /usr/local/bin/cri-dockerd
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      changed_when: false

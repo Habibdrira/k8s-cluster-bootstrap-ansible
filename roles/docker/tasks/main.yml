@@ -1,29 +1,28 @@
-
 #################################################
 # Install Docker
 #################################################
 
 - name: Install Docker packages
-  apt:
+  ansible.builtin.apt:
     name:
       - docker.io
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Enable and start Docker
-  systemd:
+  ansible.builtin.systemd:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Create Docker config directory
-  file:
+  ansible.builtin.file:
     path: /etc/docker
     state: directory
     mode: '0755'
 
 - name: Configure Docker daemon
-  copy:
+  ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     content: |
       {
@@ -34,38 +33,35 @@
         },
         "storage-driver": "overlay2"
       }
+    mode: '0644'
+  notify: Restart Docker
 
 - name: Ensure docker group exists
-  group:
+  ansible.builtin.group:
     name: docker
     state: present
-
-- name: Restart Docker to apply daemon config
-  systemd:
-    name: docker
-    state: restarted
-    daemon_reload: yes
 
 #################################################
 # Install CNI plugins (required)
 #################################################
 
 - name: Create CNI directory
-  file:
+  ansible.builtin.file:
     path: /opt/cni/bin
     state: directory
     mode: '0755'
 
 - name: Download CNI plugins
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-amd64-v1.5.0.tgz
     dest: /tmp/cni.tgz
+    mode: '0644'
 
 - name: Extract CNI plugins
-  unarchive:
+  ansible.builtin.unarchive:
     src: /tmp/cni.tgz
     dest: /opt/cni/bin
-    remote_src: yes
+    remote_src: true
     creates: /opt/cni/bin/bridge
 
 #################################################
@@ -73,37 +69,38 @@
 #################################################
 
 - name: Check if cri-dockerd is already installed
-  stat:
+  ansible.builtin.stat:
     path: /usr/local/bin/cri-dockerd
-  register: cri_dockerd_binary
+  register: docker_cri_dockerd_binary
 
 - name: Download cri-dockerd
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.15/cri-dockerd-0.3.15.amd64.tgz
     dest: /tmp/cri-dockerd.tgz
-  when: not cri_dockerd_binary.stat.exists
+    mode: '0644'
+  when: not docker_cri_dockerd_binary.stat.exists
 
 - name: Extract cri-dockerd
-  unarchive:
+  ansible.builtin.unarchive:
     src: /tmp/cri-dockerd.tgz
     dest: /tmp
-    remote_src: yes
-  when: not cri_dockerd_binary.stat.exists
+    remote_src: true
+  when: not docker_cri_dockerd_binary.stat.exists
 
 - name: Install cri-dockerd binary
-  copy:
+  ansible.builtin.copy:
     src: /tmp/cri-dockerd/cri-dockerd
     dest: /usr/local/bin/cri-dockerd
     mode: '0755'
-    remote_src: yes
-  when: not cri_dockerd_binary.stat.exists
+    remote_src: true
+  when: not docker_cri_dockerd_binary.stat.exists
 
 #################################################
 # Create cri-docker.socket
 #################################################
 
 - name: Create cri-docker.socket
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/system/cri-docker.socket
     content: |
       [Unit]
@@ -117,13 +114,14 @@
 
       [Install]
       WantedBy=sockets.target
+    mode: '0644'
 
 #################################################
 # Create cri-docker.service
 #################################################
 
 - name: Create cri-docker.service
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/system/cri-docker.service
     content: |
       [Unit]
@@ -138,25 +136,25 @@
 
       [Install]
       WantedBy=multi-user.target
+    mode: '0644'
 
 #################################################
 # Enable services
 #################################################
 
 - name: Reload systemd
-  systemd:
-    daemon_reload: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
   changed_when: false
 
 - name: Enable cri-docker.socket
-  systemd:
+  ansible.builtin.systemd:
     name: cri-docker.socket
-    enabled: yes
+    enabled: true
     state: started
 
 - name: Enable and start cri-docker.service
-  systemd:
+  ansible.builtin.systemd:
     name: cri-docker.service
-    enabled: yes
+    enabled: true
     state: started
-
