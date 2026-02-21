@@ -18,6 +18,16 @@
       changed_when: false
       failed_when: false
 
+    - name: Unhold Kubernetes packages
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      failed_when: false
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
     - name: Remove packages
       ansible.builtin.apt:
         name:
@@ -41,6 +51,25 @@
         - /etc/systemd/system/cri-docker.service
         - /etc/systemd/system/cri-docker.socket
         - /usr/local/bin/cri-dockerd
+        - /usr/local/lib/docker/cli-plugins/docker-compose
+        - /etc/docker/daemon.json
+        - /etc/apt/keyrings/kubernetes.gpg
+        - /etc/apt/sources.list.d/kubernetes.list
+        - /tmp/cri-dockerd.tgz
+        - /tmp/cri-dockerd
+        - /tmp/cni.tgz
+        - /tmp/calico.yaml
+        - /tmp/kubeadm-config.yaml
+
+    - name: Remove kube config for root
+      ansible.builtin.file:
+        path: /root/.kube
+        state: absent
+
+    - name: Remove kube config for user
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.kube
+        state: absent
 
     - name: Reload systemd
       ansible.builtin.systemd:
