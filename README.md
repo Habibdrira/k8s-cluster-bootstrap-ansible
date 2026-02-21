@@ -282,5 +282,6 @@ docker compose version
 | `cri_socket` | `"unix:///var/run/cri-dockerd.sock"` | Socket CRI Docker |
 | `calico_manifest_url` | URL Calico v3.28.0 | URL du manifest Calico |
 | `docker_compose_version` | `"2.27.0"` | Version de Docker Compose v2 |
+| `cri_dockerd_version` | `"0.3.15"` | Version de cri-dockerd |
 | `cluster_user` | `"{{ ansible_user }}"` | Utilisateur du cluster |
 | `ansible_become` | `true` | Élévation de privilèges automatique |
