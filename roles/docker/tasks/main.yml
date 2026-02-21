@@ -56,6 +56,7 @@
     url: https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-amd64-v1.5.0.tgz
     dest: /tmp/cni.tgz
     mode: '0644'
+    force: false
 
 - name: Extract CNI plugins
   ansible.builtin.unarchive:
@@ -172,9 +173,21 @@
     state: directory
     mode: '0755'
 
+- name: Check if Docker Compose is already installed
+  ansible.builtin.stat:
+    path: /usr/local/lib/docker/cli-plugins/docker-compose
+  register: docker_compose_binary
+
 - name: Download Docker Compose
   ansible.builtin.get_url:
     url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
     dest: /usr/local/lib/docker/cli-plugins/docker-compose
     mode: '0755'
     force: false
+  when: not docker_compose_binary.stat.exists
+
+- name: Verify Docker Compose installation
+  ansible.builtin.command: docker compose version
+  changed_when: false
+  register: docker_compose_check
+  failed_when: docker_compose_check.rc != 0
