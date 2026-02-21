@@ -12,7 +12,7 @@ Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansib
 | **cri-dockerd** | v0.3.15 | Shim CRI pour Docker, configuré avec `--network-plugin=cni` |
 | **CNI plugins** | v1.5.0 | Plugins réseau pour les conteneurs |
 | **kubeadm / kubelet / kubectl** | **1.32** | Outils Kubernetes |
-| **Calico** | v3.28.0 | CNI réseau des pods (CIDR : `10.244.0.0/16`) |
+| **Calico** | v3.28.0 | CNI réseau des pods (CIDR : `192.168.0.0/16`) |
 | **Local Path Provisioner** | v0.0.28 | Storage class par défaut |
 | **Docker Compose** | v2.27.0 | Plugin CLI Docker Compose v2 (installé automatiquement) |
 
@@ -38,7 +38,7 @@ Déploiement automatisé d'un cluster Kubernetes (1 Master + Workers) avec Ansib
               (IPs d'exemple — à remplacer)
 ```
 
-> ⚠️ **CIDR important** : Le sous-réseau des VMs est `192.168.1.x`. Calico utilise donc `10.244.0.0/16` pour les pods afin d'éviter tout conflit de routage.
+> ⚠️ **CIDR important** : Le sous-réseau des VMs est `192.168.1.x`. Calico utilise donc `192.168.0.0/16` pour les pods afin d'éviter tout conflit de routage.
 
 ---
 
@@ -278,7 +278,7 @@ docker compose version
 | Variable | Valeur par défaut | Description |
 |----------|-------------------|-------------|
 | `kubernetes_version` | `"1.32"` | Version de Kubernetes à installer |
-| `pod_network_cidr` | `"10.244.0.0/16"` | CIDR réseau des pods (Calico) |
+| `pod_network_cidr` | `"192.168.0.0/16"` | CIDR réseau des pods (Calico) |
 | `cri_socket` | `"unix:///var/run/cri-dockerd.sock"` | Socket CRI Docker |
 | `calico_manifest_url` | URL Calico v3.28.0 | URL du manifest Calico |
 | `docker_compose_version` | `"2.27.0"` | Version de Docker Compose v2 |
